@@ -21,6 +21,7 @@ def servicer_completion(req):
         prompt=req.prompt,
         temperature=req.temperature,
         max_tokens=max_tokens,
+        stop=req.stop,
     )
 
     res.finish_reason = response.choices[0].finish_reason

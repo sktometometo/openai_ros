@@ -1,5 +1,6 @@
 string prompt
 float32 temperature
+string[] stop
 ---
 string finish_reason
 string text
