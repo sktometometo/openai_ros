@@ -42,10 +42,10 @@ def servicer_embedding(req):
 
     response = client.embeddings.create(
         model=model,
-        inputs=[req.prompt],
+        input=[req.prompt],
     )
 
-    res.embeddings = response.data
+    res.embedding = response.data[0].embedding
     res.model = response.model
     res.prompt_tokens = response.usage.prompt_tokens
     res.total_tokens = response.usage.total_tokens
