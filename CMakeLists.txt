@@ -18,6 +18,7 @@ add_message_files(
 add_service_files(
   FILES
   Completion.srv
+  Embedding.srv
 )
 
 generate_messages(
