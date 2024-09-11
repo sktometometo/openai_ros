@@ -79,8 +79,10 @@ def main():
     pub.publish(models_msg)
 
     if api_type == "completion":
+        rospy.logwarn("API Type: Completion")
         rospy.Service("get_response", Completion, servicer_completion)
     elif api_type == "embedding":
+        rospy.logwarn("API Type: Embedding")
         rospy.Service("get_embedding", Embedding, servicer_embedding)
     else:
         rospy.logwarn(api_type + " is not an available API type")
