@@ -31,6 +31,8 @@ def servicer_completion(req):
     res.prompt_tokens = response.usage.prompt_tokens
     res.total_tokens = response.usage.total_tokens
 
+    rospy.loginfo(f"req: {req}, res:{res}")
+
     # When response is not working, completion_tokens is None, which chase error on CompleteResponse format(int32)
     if not isinstance(res.completion_tokens, int):
         res.completion_tokens = -1
@@ -50,6 +52,7 @@ def servicer_embedding(req):
     res.model = response.model
     res.prompt_tokens = response.usage.prompt_tokens
     res.total_tokens = response.usage.total_tokens
+    rospy.loginfo(f"req: {req}, res:{res}")
     return res
 
 
