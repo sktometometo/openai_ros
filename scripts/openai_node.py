@@ -13,7 +13,7 @@ API_TYPES = [
 
 
 def servicer_completion(req):
-    global client, max_tokens, model, api_type
+    global client, max_tokens, model, api_type, default_request_timeout
     res = CompletionResponse()
 
     response = client.completions.create(
@@ -22,6 +22,7 @@ def servicer_completion(req):
         temperature=req.temperature,
         max_tokens=max_tokens,
         stop=req.stop,
+        request_timeout=req.duration.to_sec() if req.duration.to_sec() != 0.0 else default_request_timeout,
     )
 
     res.finish_reason = response.choices[0].finish_reason
@@ -40,12 +41,13 @@ def servicer_completion(req):
 
 
 def servicer_embedding(req):
-    global client, model, api_type
+    global client, model, api_type, default_request_timeout
     res = EmbeddingResponse()
 
     response = client.embeddings.create(
         model=model,
         input=[req.prompt],
+        request_timeout=req.duration.to_sec() if req.duration.to_sec() != 0.0 else default_request_timeout,
     )
 
     res.embedding = response.data[0].embedding
@@ -57,7 +59,7 @@ def servicer_embedding(req):
 
 
 def main():
-    global client, max_tokens, model, api_type
+    global client, max_tokens, model, api_type, default_request_timeout
     pub = rospy.Publisher("available_models", StringArray, queue_size=1, latch=True)
     rospy.init_node("openai_node", anonymous=True)
 
@@ -65,6 +67,7 @@ def main():
     max_tokens = rospy.get_param("~max_tokens", default=256)
     model = rospy.get_param("~model", default="text-davinci-003")
     api_type = rospy.get_param("~api_type", default="completion")
+    default_request_timeout = rospy.get_param("~default_request_timeout", 10.0)
 
     if api_type not in API_TYPES:
         rospy.logwarn(api_type + " is not an available API type")

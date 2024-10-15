@@ -1,4 +1,5 @@
 string prompt
+duration timeout
 ---
 float64[] embedding
 string model

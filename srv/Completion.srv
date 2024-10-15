@@ -1,6 +1,7 @@
 string prompt
 float32 temperature
 string[] stop
+duration timeout
 ---
 string finish_reason
 string text
