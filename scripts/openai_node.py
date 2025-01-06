@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import rospy
-from openai import OpenAI
+from openai import AzureOpenAI, OpenAI
 
 from openai_ros.msg import StringArray
 from openai_ros.srv import Completion, CompletionResponse, Embedding, EmbeddingResponse
@@ -13,24 +13,43 @@ API_TYPES = [
 
 
 def servicer_completion(req):
-    global client, max_tokens, model, api_type, default_request_timeout
+    global client, max_tokens, model, api_type, default_request_timeout, enable_chat
     res = CompletionResponse()
 
-    response = client.completions.create(
-        model=model,
-        prompt=req.prompt,
-        temperature=req.temperature,
-        max_tokens=max_tokens,
-        stop=req.stop,
-        request_timeout=req.duration.to_sec() if req.duration.to_sec() != 0.0 else default_request_timeout,
-    )
-
-    res.finish_reason = response.choices[0].finish_reason
-    res.text = response.choices[0].text
-    res.model = response.model
-    res.completion_tokens = response.usage.completion_tokens
-    res.prompt_tokens = response.usage.prompt_tokens
-    res.total_tokens = response.usage.total_tokens
+    if enable_chat:
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": req.prompt,
+                }
+            ],
+            temperature=req.temperature,
+            max_tokens=max_tokens,
+            stop=req.stop,
+        )
+        print(response)
+        res.finish_reason = response.choices[0].finish_reason
+        res.text = response.choices[0].message.content
+        res.model = response.model
+        res.completion_tokens = response.usage.completion_tokens
+        res.prompt_tokens = response.usage.prompt_tokens
+        res.total_tokens = response.usage
+    else:
+        response = client.completions.create(
+            model=model,
+            prompt=req.prompt,
+            temperature=req.temperature,
+            max_tokens=max_tokens,
+            stop=req.stop,
+        )
+        res.finish_reason = response.choices[0].finish_reason
+        res.text = response.choices[0].text
+        res.model = response.model
+        res.completion_tokens = response.usage.completion_tokens
+        res.prompt_tokens = response.usage.prompt_tokens
+        res.total_tokens = response.usage.total_tokens
 
     rospy.loginfo(f"req: {req}, res:{res}")
 
@@ -47,7 +66,11 @@ def servicer_embedding(req):
     response = client.embeddings.create(
         model=model,
         input=[req.prompt],
-        request_timeout=req.duration.to_sec() if req.duration.to_sec() != 0.0 else default_request_timeout,
+        request_timeout=(
+            req.timeout.to_sec()
+            if req.timeout.to_sec() != 0.0
+            else default_request_timeout
+        ),
     )
 
     res.embedding = response.data[0].embedding
@@ -59,11 +82,20 @@ def servicer_embedding(req):
 
 
 def main():
-    global client, max_tokens, model, api_type, default_request_timeout
+    global client, max_tokens, model, api_type, default_request_timeout, enable_chat
     pub = rospy.Publisher("available_models", StringArray, queue_size=1, latch=True)
     rospy.init_node("openai_node", anonymous=True)
+    use_azure = rospy.get_param("~use_azure", default=False)
+    enable_chat = rospy.get_param("~enable_chat", default=False)
 
-    client = OpenAI(api_key=rospy.get_param("~key"))
+    if use_azure:
+        client = AzureOpenAI(
+            api_key=rospy.get_param("~key"),
+            azure_endpoint=rospy.get_param("~azure_endpoint"),
+            api_version=rospy.get_param("~azure_api_version"),
+        )
+    else:
+        client = OpenAI(api_key=rospy.get_param("~key"))
     max_tokens = rospy.get_param("~max_tokens", default=256)
     model = rospy.get_param("~model", default="text-davinci-003")
     api_type = rospy.get_param("~api_type", default="completion")
