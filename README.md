@@ -27,6 +27,12 @@ max_tokens: 256
 model: text-davinci-003
 ```
 
+When you want to use with AzureOpenAI, start like below.
+
+```
+$ roslaunch openai_ros openai.launch key:="-------" use_azure:=true azure_endpoint:="https://xxxxxxxxx" api_type:=chat_completion model:="<name of custom model instance>"
+```
+
 How to use service
 ------------------
 
