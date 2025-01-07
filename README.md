@@ -31,6 +31,9 @@ How to use service
 ------------------
 
 ```
-$ rosservice call /openai/get_response '{prompt: "Write a poem about OpenAI"}'
+$ rosservice call /get_response '{prompt: "Write a poem about OpenAI"}'
 ```
 
+```
+$ rosservice call /get_embedding '{prompt: "Write a poem about OpenAI", timeout: {secs: 10, nsecs: 0}}'
+```

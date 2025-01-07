@@ -2,54 +2,75 @@
 
 import rospy
 from openai import AzureOpenAI, OpenAI
+import unicodedata
 
 from openai_ros.msg import StringArray
 from openai_ros.srv import Completion, CompletionResponse, Embedding, EmbeddingResponse
 
+API_TYPE_COMPLETION = "completion"
+API_TYPE_CHAT_COMPLETION = "chat_completion"
+API_TYPE_EMBEDDING = "embedding"
+
 API_TYPES = [
-    "completion",
-    "embedding",
+    API_TYPE_COMPLETION,
+    API_TYPE_CHAT_COMPLETION,
+    API_TYPE_EMBEDDING,
 ]
 
 
 def servicer_completion(req):
-    global client, max_tokens, model, api_type, default_request_timeout, enable_chat
+    global client, max_tokens, model, api_type, default_request_timeout
     res = CompletionResponse()
 
-    if enable_chat:
-        response = client.chat.completions.create(
-            model=model,
-            messages=[
-                {
-                    "role": "system",
-                    "content": req.prompt,
-                }
-            ],
-            temperature=req.temperature,
-            max_tokens=max_tokens,
-            stop=req.stop,
-        )
-        print(response)
-        res.finish_reason = response.choices[0].finish_reason
-        res.text = response.choices[0].message.content
-        res.model = response.model
-        res.completion_tokens = response.usage.completion_tokens
-        res.prompt_tokens = response.usage.prompt_tokens
-        res.total_tokens = response.usage
-    else:
-        response = client.completions.create(
-            model=model,
-            prompt=req.prompt,
-            temperature=req.temperature,
-            max_tokens=max_tokens,
-            stop=req.stop,
-        )
-        res.finish_reason = response.choices[0].finish_reason
-        res.text = response.choices[0].text
-        res.model = response.model
-        res.completion_tokens = response.usage.completion_tokens
-        res.prompt_tokens = response.usage.prompt_tokens
-        res.total_tokens = response.usage.total_tokens
+    response = client.completions.create(
+        model=model,
+        prompt=req.prompt,
+        temperature=req.temperature,
+        max_tokens=max_tokens,
+        stop=req.stop,
+    )
+    res.finish_reason = response.choices[0].finish_reason
+    res.text = response.choices[0].text
+    res.model = response.model
+    res.completion_tokens = response.usage.completion_tokens
+    res.prompt_tokens = response.usage.prompt_tokens
+    res.total_tokens = response.usage.total_tokens
+
+    rospy.loginfo(f"req: {req}, res:{res}")
+
+    # When response is not working, completion_tokens is None, which chase error on CompleteResponse format(int32)
+    if not isinstance(res.completion_tokens, int):
+        res.completion_tokens = -1
+    return res
+
+
+def servicer_chat_completion(req):
+    global client, max_tokens, model, api_type, default_request_timeout
+    res = CompletionResponse()
+
+    response = client.chat.completions.create(
+        model=model,
+        messages=[
+            {
+                "role": "system",
+                "content": req.prompt,
+            }
+        ],
+        temperature=req.temperature,
+        max_tokens=max_tokens,
+        stop=req.stop,
+    )
+    print(response)
+    res.finish_reason = response.choices[0].finish_reason
+    res.text = (
+        unicodedata.normalize("NFKD", response.choices[0].message.content)
+        .encode("ascii", "ignore")
+        .decode("ascii")
+    )
+    res.model = response.model
+    res.completion_tokens = response.usage.completion_tokens
+    res.prompt_tokens = response.usage.prompt_tokens
+    res.total_tokens = response.usage.total_tokens
 
     rospy.loginfo(f"req: {req}, res:{res}")
 
@@ -66,11 +87,6 @@ def servicer_embedding(req):
     response = client.embeddings.create(
         model=model,
         input=[req.prompt],
-        request_timeout=(
-            req.timeout.to_sec()
-            if req.timeout.to_sec() != 0.0
-            else default_request_timeout
-        ),
     )
 
     res.embedding = response.data[0].embedding
@@ -82,11 +98,10 @@ def servicer_embedding(req):
 
 
 def main():
-    global client, max_tokens, model, api_type, default_request_timeout, enable_chat
+    global client, max_tokens, model, api_type, default_request_timeout
     pub = rospy.Publisher("available_models", StringArray, queue_size=1, latch=True)
     rospy.init_node("openai_node", anonymous=True)
     use_azure = rospy.get_param("~use_azure", default=False)
-    enable_chat = rospy.get_param("~enable_chat", default=False)
 
     if use_azure:
         client = AzureOpenAI(
@@ -117,12 +132,15 @@ def main():
 
     pub.publish(models_msg)
 
-    if api_type == "completion":
+    if api_type == API_TYPE_COMPLETION:
         rospy.logwarn("API Type: Completion")
         rospy.Service("get_response", Completion, servicer_completion)
-    elif api_type == "embedding":
+    elif api_type == API_TYPE_EMBEDDING:
         rospy.logwarn("API Type: Embedding")
         rospy.Service("get_embedding", Embedding, servicer_embedding)
+    elif api_type == API_TYPE_CHAT_COMPLETION:
+        rospy.logwarn("API Type: Chat Completion")
+        rospy.Service("get_response", Completion, servicer_chat_completion)
     else:
         rospy.logwarn(api_type + " is not an available API type")
         return

@@ -1,12 +1,11 @@
 <launch>
-  <arg name="key" default="$(env OPENAI_API_KEY)" />
+  <arg name="key" default="$(optenv OPENAI_API_KEY)" />
   <arg name="max_tokens" default="256" />
   <arg name="model" default="text-davinci-003" />
   <arg name="api_type" default="completion" />
   <arg name="use_azure" default="false" />
   <arg name="azure_endpoint" default="$(optenv AZURE_OPENAI_ENDPOINT)" />
   <arg name="azure_api_version" default="2024-07-01-preview" />
-  <arg name="enable_chat" default="false" />
 
   <node pkg="openai_ros" type="openai_node.py" name="openai" output="screen">
     <param name="key" value="$(arg key)" />
@@ -16,6 +15,5 @@
     <param name="use_azure" value="$(arg use_azure)" />
     <param name="azure_endpoint" value="$(arg azure_endpoint)" />
     <param name="azure_api_version" value="$(arg azure_api_version)" />
-    <param name="enable_chat" value="$(arg enable_chat)" />
   </node>
 </launch>
